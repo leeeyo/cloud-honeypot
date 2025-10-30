@@ -1,0 +1,8 @@
+---
+- name: Install Falco on AKS via Helm
+  hosts: aks
+  gather_facts: false
+  vars:
+    falco_deploy_target: "k8s"
+  roles:
+    - falco

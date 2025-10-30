@@ -1,0 +1,9 @@
+---
+- name: Install Falco on Linux VMs
+  hosts: linux
+  become: true
+  gather_facts: true
+  vars:
+    falco_deploy_target: "vm"
+  roles:
+    - falco

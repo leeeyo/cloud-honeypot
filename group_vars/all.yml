@@ -1,0 +1,24 @@
+---
+falco_deploy_target: "auto"  # auto|k8s|vm
+
+# For k8s installs via Helm
+falco_chart_version: "3.8.3"  # adjust as needed
+falco_namespace: "falco"
+falco_helm_values: {}
+
+# For VM installs
+falco_vm_channel: stable
+falco_vm_enable_kernel_headers: true
+
+# Outputs (falcosidekick / direct)
+falco_enable_falcosidekick: true
+falcosidekick_version: "2.29.0"
+falcosidekick_namespace: "falco"
+# Example Azure Log Analytics (configure if used)
+azure_log_analytics:
+  enabled: false
+  customer_id: ""
+  shared_key: ""
+
+# Custom rules override content
+falco_rules_local: ""

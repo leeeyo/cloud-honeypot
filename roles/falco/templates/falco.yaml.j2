@@ -1,0 +1,13 @@
+# Rendered only when custom outputs or rules are set
+json_output: true
+json_include_output_property: true
+
+# Example program_output if shipping directly (falcosidekick preferred)
+program_output:
+  enabled: {{ 'true' if azure_log_analytics.enabled else 'false' }}
+  keep_alive: false
+  program: "| jq -c ."
+
+# Local rules file is always loaded by Falco if present
+rules_file:
+  - /etc/falco/falco_rules.local.yaml

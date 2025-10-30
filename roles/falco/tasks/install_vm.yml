@@ -1,0 +1,64 @@
+---
+- name: Ensure apt dependencies are present
+  ansible.builtin.apt:
+    name:
+      - curl
+      - gnupg
+      - ca-certificates
+      - lsb-release
+      - jq
+      - dkms
+    update_cache: true
+  when: ansible_os_family == 'Debian'
+
+- name: Add Falco GPG key
+  ansible.builtin.apt_key:
+    url: https://falco.org/repo/falcosecurity-packages.pub
+    state: present
+  when: ansible_os_family == 'Debian'
+
+- name: Add Falco APT repo
+  ansible.builtin.apt_repository:
+    repo: "deb https://download.falco.org/packages/deb stable main"
+    state: present
+  when: ansible_os_family == 'Debian'
+
+- name: Install kernel headers (optional)
+  ansible.builtin.apt:
+    name: "linux-headers-{{ ansible_kernel }}"
+    state: present
+    update_cache: true
+  when:
+    - ansible_os_family == 'Debian'
+    - falco_vm_enable_kernel_headers | bool
+
+- name: Install Falco
+  ansible.builtin.apt:
+    name: falco
+    state: present
+    update_cache: true
+  when: ansible_os_family == 'Debian'
+
+- name: Write falco.yaml if template provided
+  ansible.builtin.template:
+    src: falco.yaml.j2
+    dest: /etc/falco/falco.yaml
+    owner: root
+    group: root
+    mode: '0644'
+  when: falco_rules_local | length > 0 or azure_log_analytics.enabled | bool
+
+- name: Write local rules if provided
+  ansible.builtin.copy:
+    dest: /etc/falco/falco_rules.local.yaml
+    content: "{{ falco_rules_local }}"
+    owner: root
+    group: root
+    mode: '0644'
+  when: falco_rules_local | length > 0
+
+- name: Ensure Falco is enabled and running
+  ansible.builtin.service:
+    name: falco
+    state: started
+    enabled: true

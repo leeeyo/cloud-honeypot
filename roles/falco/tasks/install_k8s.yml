@@ -1,0 +1,62 @@
+---
+- name: Ensure namespace exists
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig | default(omit) }}"
+    api_version: v1
+    kind: Namespace
+    name: "{{ falco_namespace }}"
+    state: present
+
+- name: Deploy Falco via Helm
+  kubernetes.core.helm:
+    kubeconfig: "{{ kubeconfig | default(omit) }}"
+    name: falco
+    chart_ref: falcosecurity/falco
+    chart_repo_url: https://falcosecurity.github.io/charts
+    release_namespace: "{{ falco_namespace }}"
+    create_namespace: false
+    atomic: true
+    wait: true
+    values: "{{ falco_helm_values }}"
+    chart_version: "{{ falco_chart_version }}"
+
+- name: Apply custom falco.yaml if provided
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig | default(omit) }}"
+    state: present
+    definition: |
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: falco-custom
+        namespace: {{ falco_namespace }}
+        labels:
+          app.kubernetes.io/name: falco
+      data:
+        falco.yaml: |
+{{ (lookup('template', 'falco.yaml.j2') | indent(10)) if falco_rules_local or azure_log_analytics.enabled else '' }}
+  when: falco_rules_local | length > 0 or azure_log_analytics.enabled | bool
+
+- name: Deploy Falcosidekick (optional)
+  when: falco_enable_falcosidekick | bool
+  kubernetes.core.helm:
+    kubeconfig: "{{ kubeconfig | default(omit) }}"
+    name: falcosidekick
+    chart_ref: falcosecurity/falcosidekick
+    chart_repo_url: https://falcosecurity.github.io/charts
+    release_namespace: "{{ falcosidekick_namespace }}"
+    create_namespace: true
+    atomic: true
+    wait: true
+    chart_version: "{{ falcosidekick_version }}"
+    values:
+      config:
+        loki:
+          hostport: ""
+        azure:
+          eventHub:
+            enabled: false
+          logAnalytics:
+            enabled: {{ azure_log_analytics.enabled | bool }}
+            customerID: "{{ azure_log_analytics.customer_id }}"
+            sharedKey: "{{ azure_log_analytics.shared_key }}"
