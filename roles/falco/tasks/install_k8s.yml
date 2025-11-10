@@ -24,17 +24,16 @@
   kubernetes.core.k8s:
     kubeconfig: "{{ kubeconfig | default(omit) }}"
     state: present
-    definition: |
+    definition:
       apiVersion: v1
       kind: ConfigMap
       metadata:
         name: falco-custom
-        namespace: {{ falco_namespace }}
+        namespace: "{{ falco_namespace }}"
         labels:
           app.kubernetes.io/name: falco
       data:
-        falco.yaml: |
-{{ (lookup('template', 'falco.yaml.j2') | indent(10)) if falco_rules_local or azure_log_analytics.enabled else '' }}
+        falco.yaml: "{{ lookup('template', 'falco.yaml.j2') }}"
   when: falco_rules_local | length > 0 or azure_log_analytics.enabled | bool
 
 - name: Deploy Falcosidekick (optional)
@@ -57,6 +56,6 @@
           eventHub:
             enabled: false
           logAnalytics:
-            enabled: {{ azure_log_analytics.enabled | bool }}
+            enabled: "{{ azure_log_analytics.enabled | bool }}"
             customerID: "{{ azure_log_analytics.customer_id }}"
             sharedKey: "{{ azure_log_analytics.shared_key }}"

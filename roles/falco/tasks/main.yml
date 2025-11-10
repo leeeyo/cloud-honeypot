@@ -1,12 +1,12 @@
 ---
 - name: Detect if K8s context is provided
-  set_fact:
+  ansible.builtin.set_fact:
     _is_k8s: "{{ (falco_deploy_target == 'k8s') or (falco_deploy_target == 'auto' and hostvars[inventory_hostname].get('kubeconfig', '') | length > 0) }}"
 
 - name: Include K8s install
-  include_tasks: install_k8s.yml
+  ansible.builtin.include_tasks: install_k8s.yml
   when: _is_k8s | bool
 
 - name: Include VM install
-  include_tasks: install_vm.yml
+  ansible.builtin.include_tasks: install_vm.yml
   when: not (_is_k8s | bool)
