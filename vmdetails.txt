@@ -1,0 +1,8 @@
+aziz@DESKTOP-1UUJ8B6:~/mini-projet/terraform$    terraform output vm_public_ip
+"20.19.250.185"
+aziz@DESKTOP-1UUJ8B6:~/mini-projet/terraform$    terraform output ansible_inventory_entry
+<<EOT
+vm-test:
+  ansible_host: 20.19.250.185
+  ansible_user: azizmaram
+  ansible_ssh_private_key_file: ./.terraform/ssh_key
