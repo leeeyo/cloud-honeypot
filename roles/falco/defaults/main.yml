@@ -3,17 +3,13 @@ falco_deploy_target: "auto"
 falco_chart_version: "3.8.3"
 falco_namespace: "falco"
 falco_helm_values: {}
-
 falco_vm_channel: stable
 falco_vm_enable_kernel_headers: true
-
 falco_enable_falcosidekick: true
-falcosidekick_version: "2.29.0"
-falcosidekick_namespace: "falco"
-
-azure_log_analytics:
+falco_falcosidekick_version: "2.29.0"
+falco_falcosidekick_namespace: "falco"
+falco_azure_log_analytics:
   enabled: false
   customer_id: ""
   shared_key: ""
-
 falco_rules_local: ""

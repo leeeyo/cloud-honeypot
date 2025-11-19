@@ -6,7 +6,6 @@
     kind: Namespace
     name: "{{ falco_namespace }}"
     state: present
-
 - name: Deploy Falco via Helm
   kubernetes.core.helm:
     kubeconfig: "{{ kubeconfig | default(omit) }}"
@@ -19,7 +18,6 @@
     wait: true
     values: "{{ falco_helm_values }}"
     chart_version: "{{ falco_chart_version }}"
-
 - name: Apply custom falco.yaml if provided
   kubernetes.core.k8s:
     kubeconfig: "{{ kubeconfig | default(omit) }}"
@@ -34,8 +32,7 @@
           app.kubernetes.io/name: falco
       data:
         falco.yaml: "{{ lookup('template', 'falco.yaml.j2') }}"
-  when: falco_rules_local | length > 0 or azure_log_analytics.enabled | bool
-
+  when: falco_rules_local | length > 0 or falco_azure_log_analytics.enabled | bool
 - name: Deploy Falcosidekick (optional)
   when: falco_enable_falcosidekick | bool
   kubernetes.core.helm:
@@ -43,11 +40,11 @@
     name: falcosidekick
     chart_ref: falcosecurity/falcosidekick
     chart_repo_url: https://falcosecurity.github.io/charts
-    release_namespace: "{{ falcosidekick_namespace }}"
+    release_namespace: "{{ falco_falcosidekick_namespace }}"
     create_namespace: true
     atomic: true
     wait: true
-    chart_version: "{{ falcosidekick_version }}"
+    chart_version: "{{ falco_falcosidekick_version }}"
     values:
       config:
         loki:
@@ -56,6 +53,6 @@
           eventHub:
             enabled: false
           logAnalytics:
-            enabled: "{{ azure_log_analytics.enabled | bool }}"
-            customerID: "{{ azure_log_analytics.customer_id }}"
-            sharedKey: "{{ azure_log_analytics.shared_key }}"
+            enabled: "{{ falco_azure_log_analytics.enabled | bool }}"
+            customerID: "{{ falco_azure_log_analytics.customer_id }}"
+            sharedKey: "{{ falco_azure_log_analytics.shared_key }}"

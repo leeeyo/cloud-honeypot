@@ -4,7 +4,7 @@ json_include_output_property: true
 
 # Example program_output if shipping directly (falcosidekick preferred)
 program_output:
-  enabled: {{ 'true' if azure_log_analytics.enabled else 'false' }}
+  enabled: {{ 'true' if falco_azure_log_analytics.enabled else 'false' }}
   keep_alive: false
   program: "| jq -c ."
 

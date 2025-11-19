@@ -56,7 +56,7 @@ resource "azurerm_network_security_group" "test" {
 # Associate NSG with Subnet
 resource "azurerm_subnet_network_security_group_association" "test" {
   subnet_id                 = azurerm_subnet.test.id
-  network_security_group_id  = azurerm_network_security_group.test.id
+  network_security_group_id = azurerm_network_security_group.test.id
 }
 
 # Public IP

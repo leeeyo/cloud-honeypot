@@ -46,7 +46,7 @@
     owner: root
     group: root
     mode: '0644'
-  when: falco_rules_local | length > 0 or azure_log_analytics.enabled | bool
+  when: falco_rules_local | length > 0 or falco_azure_log_analytics.enabled | bool
 
 - name: Write local rules if provided
   ansible.builtin.copy:

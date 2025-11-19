@@ -26,6 +26,6 @@ output "ssh_connection_command" {
 
 output "ansible_inventory_entry" {
   description = "Ansible inventory entry for this VM"
-  value = var.generate_ssh_key ? "vm-test:\n  ansible_host: ${azurerm_public_ip.test.ip_address}\n  ansible_user: ${var.vm_username}\n  ansible_ssh_private_key_file: ${path.module}/.terraform/ssh_key" : "vm-test:\n  ansible_host: ${azurerm_public_ip.test.ip_address}\n  ansible_user: ${var.vm_username}\n  ansible_ssh_private_key_file: ${replace(var.ssh_public_key_path, ".pub", "")}"
+  value       = var.generate_ssh_key ? "vm-test:\n  ansible_host: ${azurerm_public_ip.test.ip_address}\n  ansible_user: ${var.vm_username}\n  ansible_ssh_private_key_file: ${path.module}/.terraform/ssh_key" : "vm-test:\n  ansible_host: ${azurerm_public_ip.test.ip_address}\n  ansible_user: ${var.vm_username}\n  ansible_ssh_private_key_file: ${replace(var.ssh_public_key_path, ".pub", "")}"
 }
 

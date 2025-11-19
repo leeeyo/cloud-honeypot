@@ -12,10 +12,10 @@ falco_vm_enable_kernel_headers: true
 
 # Outputs (falcosidekick / direct)
 falco_enable_falcosidekick: true
-falcosidekick_version: "2.29.0"
-falcosidekick_namespace: "falco"
+falco_falcosidekick_version: "2.29.0"
+falco_falcosidekick_namespace: "falco"
 # Example Azure Log Analytics (configure if used)
-azure_log_analytics:
+falco_azure_log_analytics:
   enabled: false
   customer_id: ""
   shared_key: ""
