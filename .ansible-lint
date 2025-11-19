@@ -1,0 +1,8 @@
+---
+# Ansible Lint Configuration
+exclude_paths:
+  - .github
+  - .git
+  - .venv
+  - venv
+  - node_modules

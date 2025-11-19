@@ -75,4 +75,3 @@ jobs:
           ansible-playbook --syntax-check playbooks/vm-falco.yml
           ansible-playbook --syntax-check playbooks/aks-falco.yml
           ansible-playbook --syntax-check site.yml
-

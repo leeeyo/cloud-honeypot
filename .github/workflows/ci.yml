@@ -22,12 +22,12 @@ jobs:
       - name: Run all validation checks
         run: |
           echo "Running comprehensive validation checks..."
-          
+
           # Check for required files
           test -f terraform/main.tf || (echo "Missing terraform/main.tf" && exit 1)
           test -f playbooks/vm-falco.yml || (echo "Missing playbooks/vm-falco.yml" && exit 1)
           test -f ansible.cfg || (echo "Missing ansible.cfg" && exit 1)
-          
+
           echo "✓ All required files present"
 
   terraform-check:
@@ -80,4 +80,3 @@ jobs:
         run: |
           ansible-playbook --syntax-check playbooks/vm-falco.yml
           ansible-playbook --syntax-check playbooks/aks-falco.yml
-

@@ -86,4 +86,3 @@ jobs:
           pip install yamllint
           yamllint -d '{extends: default, rules: {line-length: {max: 120}, truthy: {allowed-values: ["true", "false"]}}}' \
             .github/workflows/ playbooks/ roles/ inventories/ group_vars/
-

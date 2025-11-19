@@ -183,4 +183,3 @@ jobs:
           ssh -i ~/.ssh/terraform_key -o StrictHostKeyChecking=no \
             ${{ steps.terraform-outputs.outputs.vm_username }}@${{ steps.terraform-outputs.outputs.vm_public_ip }} \
             "sudo systemctl status falco --no-pager || echo 'Falco service check completed'"
-
