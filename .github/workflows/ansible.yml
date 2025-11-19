@@ -1,5 +1,4 @@
 name: Ansible Linting and Validation
-
 on:
   push:
     branches:
@@ -50,26 +49,21 @@ jobs:
       - name: Run yamllint
         run: |
           yamllint -d '{extends: default, rules: {line-length: {max: 120}}}' playbooks/ roles/ inventories/ group_vars/
-
   ansible-syntax-check:
     name: Ansible Syntax Check
     runs-on: debian-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
       - name: Install Ansible and dependencies
         run: |
           pip install --upgrade pip
           pip install ansible
           ansible-galaxy collection install kubernetes.core community.general
-
       - name: Ansible Syntax Check
         run: |
           ansible-playbook --syntax-check playbooks/vm-falco.yml

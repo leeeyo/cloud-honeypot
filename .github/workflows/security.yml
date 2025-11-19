@@ -32,16 +32,41 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Check if language files exist
+        id: check-files
+        run: |
+          has_files=false
+          if [ "${{ matrix.language }}" == "python" ]; then
+            count=$(find . -name "*.py" -not -path "./.git/*" -not -path "./.venv/*" -not -path "./venv/*" | wc -l)
+            if [ "$count" -gt 0 ]; then
+              has_files=true
+            fi
+          elif [ "${{ matrix.language }}" == "javascript" ]; then
+            count=$(find . \( -name "*.js" -o -name "*.ts" -o -name "*.jsx" -o -name "*.tsx" \) -not -path "./.git/*" -not -path "./node_modules/*" | wc -l)
+            if [ "$count" -gt 0 ]; then
+              has_files=true
+            fi
+          fi
+          echo "has_files=$has_files" >> $GITHUB_OUTPUT
+
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        if: steps.check-files.outputs.has_files == 'true'
+        uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
+        if: steps.check-files.outputs.has_files == 'true'
+        uses: github/codeql-action/autobuild@v4
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        if: steps.check-files.outputs.has_files == 'true'
+        uses: github/codeql-action/analyze@v4
+
+      - name: Skip CodeQL (no source files)
+        if: steps.check-files.outputs.has_files == 'false'
+        run: |
+          echo "No ${{ matrix.language }} source files found. Skipping CodeQL analysis."
 
   dependency-review:
     name: Dependency Review
@@ -85,4 +110,4 @@ jobs:
         run: |
           pip install yamllint
           yamllint -d '{extends: default, rules: {line-length: {max: 120}, truthy: {allowed-values: ["true", "false"]}}}' \
-            .github/workflows/ playbooks/ roles/ inventories/ group_vars/
+            playbooks/ roles/ inventories/ group_vars/

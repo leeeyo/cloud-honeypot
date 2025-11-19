@@ -1,7 +1,12 @@
 ---
 - name: Detect if K8s context is provided
   ansible.builtin.set_fact:
-    _is_k8s: "{{ (falco_deploy_target == 'k8s') or (falco_deploy_target == 'auto' and hostvars[inventory_hostname].get('kubeconfig', '') | length > 0) }}"
+    _is_k8s: >-
+      {{
+        (falco_deploy_target == 'k8s') or
+        (falco_deploy_target == 'auto' and
+         hostvars[inventory_hostname].get('kubeconfig', '') | length > 0)
+      }}
 
 - name: Include K8s install
   ansible.builtin.include_tasks: install_k8s.yml
