@@ -56,3 +56,4 @@
             enabled: "{{ falco_azure_log_analytics.enabled | bool }}"
             customerID: "{{ falco_azure_log_analytics.customer_id }}"
             sharedKey: "{{ falco_azure_log_analytics.shared_key }}"
+            
