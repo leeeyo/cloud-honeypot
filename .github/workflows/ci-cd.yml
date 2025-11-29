@@ -1,0 +1,410 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+env:
+  TF_VERSION: '1.14'
+  JAVA_VERSION: '17'
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  # =========================================
+  # TERRAFORM VALIDATION
+  # =========================================
+  terraform-validate:
+    name: Terraform Validate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: Terraform Format Check
+        id: fmt
+        run: terraform fmt -check
+        continue-on-error: false
+
+      - name: Terraform Init
+        id: init
+        run: terraform init
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate -no-color
+
+      - name: Terraform Plan (PR only)
+        id: plan
+        if: github.event_name == 'pull_request'
+        run: terraform plan -no-color -out=tfplan | tee plan_output.txt
+        env:
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        continue-on-error: true
+
+      - name: Comment PR with Plan
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            let planOutput = 'Plan output not available';
+            try {
+              planOutput = fs.readFileSync('terraform/plan_output.txt', 'utf8');
+              if (planOutput.length > 65000) {
+                planOutput = planOutput.substring(0, 65000) + '\n... (truncated)';
+              }
+            } catch (error) {
+              planOutput = 'Error reading plan output';
+            }
+
+            const output = `#### Terraform Format 🖌 \`${{ steps.fmt.outcome }}\`
+            #### Terraform Init ⚙️ \`${{ steps.init.outcome }}\`
+            #### Terraform Validate 🤖 \`${{ steps.validate.outcome }}\`
+            #### Terraform Plan 📖 \`${{ steps.plan.outcome }}\`
+
+            <details><summary>Show Plan</summary>
+
+            \`\`\`terraform
+            ${planOutput}
+            \`\`\`
+
+            </details>
+
+            *Pushed by: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+
+  # =========================================
+  # TERRAFORM SECURITY SCAN
+  # =========================================
+  terraform-security:
+    name: Terraform Security Scan
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: terraform
+          framework: terraform
+          soft_fail: true
+          output_format: sarif
+          output_file_path: checkov.sarif
+
+      - name: Upload Checkov results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: terraform/checkov.sarif
+        continue-on-error: true
+
+  # =========================================
+  # ANSIBLE LINTING
+  # =========================================
+  ansible-lint:
+    name: Ansible Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Ansible and linting tools
+        run: |
+          pip install --upgrade pip
+          pip install ansible ansible-lint yamllint
+
+      - name: Install Ansible collections
+        run: |
+          ansible-galaxy collection install kubernetes.core community.general community.mysql
+
+      - name: Run yamllint
+        run: |
+          yamllint -d '{extends: default, rules: {line-length: {max: 120}, truthy: disable}}' \
+            playbooks/ roles/ inventories/ group_vars/
+        continue-on-error: true
+
+      - name: Run ansible-lint
+        run: |
+          ansible-lint playbooks/ roles/ site.yml --exclude .github/
+
+      - name: Ansible Syntax Check
+        run: |
+          ansible-playbook --syntax-check site.yml
+          ansible-playbook --syntax-check playbooks/setup-infrastructure.yml
+          ansible-playbook --syntax-check playbooks/deploy-auth-lib.yml
+
+  # =========================================
+  # APPLICATION BUILD
+  # =========================================
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+    needs: [ansible-lint]
+    defaults:
+      run:
+        working-directory: auth-lib
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.11.1'
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Build with Gradle
+        run: ./gradlew clean build -x test
+
+      - name: Run unit tests
+        run: ./gradlew test -PskipIntegrationTests=true
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: auth-lib/build/test-results/test/*.xml
+
+      - name: Generate test coverage report
+        run: ./gradlew jacocoTestReport
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: auth-lib/build/reports/jacoco/
+
+      - name: Package distribution
+        run: ./gradlew distZip
+
+      - name: Upload application artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: auth-lib-distribution
+          path: auth-lib/build/distributions/*.zip
+
+      - name: Upload JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: auth-lib-jar
+          path: auth-lib/build/libs/*.jar
+
+  # =========================================
+  # CODE QUALITY
+  # =========================================
+  code-quality:
+    name: Code Quality Analysis
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    defaults:
+      run:
+        working-directory: auth-lib
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Run SonarQube analysis
+        if: env.SONAR_TOKEN != ''
+        run: ./gradlew sonar
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        continue-on-error: true
+
+  # =========================================
+  # SECURITY SCAN
+  # =========================================
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: [build]
+    defaults:
+      run:
+        working-directory: auth-lib
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+
+      - name: Run OWASP Dependency Check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: 'auth-lib'
+          path: 'auth-lib'
+          format: 'HTML'
+          out: 'reports'
+        continue-on-error: true
+
+      - name: Upload security report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-report
+          path: reports/
+
+  # =========================================
+  # DEPLOY TO AZURE
+  # =========================================
+  deploy:
+    name: Deploy to Azure
+    runs-on: ubuntu-latest
+    needs: [terraform-validate, ansible-lint, build]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download JAR artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: auth-lib-jar
+          path: auth-lib/build/libs/
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Ansible
+        run: |
+          pip install --upgrade pip
+          pip install ansible
+          ansible-galaxy collection install kubernetes.core community.general community.mysql
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Create dynamic inventory
+        run: |
+          cat > inventory.yml << EOF
+          all:
+            hosts:
+              azure-vm:
+                ansible_host: ${{ secrets.VM_HOST }}
+                ansible_user: ${{ secrets.VM_USER }}
+                ansible_ssh_private_key_file: ~/.ssh/id_rsa
+            children:
+              linux:
+                hosts:
+                  azure-vm:
+          EOF
+
+      - name: Run Ansible deployment
+        run: |
+          ansible-playbook -i inventory.yml site.yml \
+            --tags infrastructure,application \
+            --skip-tags falco \
+            -e "auth_lib_jar_path=${{ github.workspace }}/auth-lib/build/libs/Project1-1.0.0.jar"
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: 'False'
+
+      - name: Verify deployment
+        run: |
+          sleep 30
+          curl -f http://${{ secrets.VM_HOST }}:9090/login || echo "Health check failed - check application logs"
+        continue-on-error: true
+
+  # =========================================
+  # NOTIFICATION
+  # =========================================
+  notify:
+    name: Notify
+    runs-on: ubuntu-latest
+    needs: [deploy]
+    if: always() && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Deployment notification
+        run: |
+          if [ "${{ needs.deploy.result }}" == "success" ]; then
+            echo "Deployment successful!"
+          else
+            echo "Deployment failed or skipped"
+          fi
+

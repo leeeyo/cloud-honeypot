@@ -1,0 +1,87 @@
+# =========================================
+# APPLICATION CONFIGURATION
+# Managed by Ansible - Do not edit manually
+# =========================================
+
+# Core application settings
+spring.application.name={{ auth_lib_app_name }}
+server.port={{ auth_lib_port }}
+
+# Authentication Configuration
+# Options: ldap, db
+authentication.type={{ auth_lib_authentication_type }}
+spring.main.allow-bean-definition-overriding={{ auth_lib_allow_bean_override | lower }}
+
+
+# =========================================
+# DATABASE CONFIGURATION
+# =========================================
+# MySQL Database Connection
+spring.datasource.url=jdbc:mysql://{{ auth_lib_mysql_host }}:{{ auth_lib_mysql_port }}/{{ auth_lib_mysql_database }}
+spring.datasource.username={{ auth_lib_mysql_username }}
+spring.datasource.password={{ auth_lib_mysql_password }}
+spring.datasource.driverClassName={{ auth_lib_mysql_driver }}
+
+# JPA / Hibernate Configuration
+spring.jpa.hibernate.ddl-auto={{ auth_lib_jpa_ddl_auto }}
+spring.jpa.database-platform={{ auth_lib_mysql_dialect }}
+spring.jpa.database=mysql
+spring.jpa.show-sql={{ auth_lib_jpa_show_sql | lower }}
+spring.data.jpa.repositories.enabled=true
+spring.jpa.open-in-view={{ auth_lib_jpa_open_in_view | lower }}
+
+
+# =========================================
+# LDAP CONFIGURATION
+# =========================================
+# Server Connection
+spring.ldap.url={{ auth_lib_ldap_url }}
+spring.ldap.base={{ auth_lib_ldap_base }}
+spring.ldap.username={{ auth_lib_ldap_username }}
+spring.ldap.password={{ auth_lib_ldap_password }}
+
+# LDAP Search Configuration
+spring.ldap.template.search.base=ou={{ auth_lib_ldap_users_ou }},{{ auth_lib_ldap_base }}
+spring.ldap.template.search.filter={{ auth_lib_ldap_user_search_filter }}
+ldap.user.dn.pattern={{ auth_lib_ldap_user_dn_pattern }}
+
+
+# =========================================
+# THYMELEAF CONFIGURATION
+# =========================================
+spring.thymeleaf.enabled={{ auth_lib_thymeleaf_enabled | lower }}
+spring.thymeleaf.prefix={{ auth_lib_thymeleaf_prefix }}
+spring.thymeleaf.suffix={{ auth_lib_thymeleaf_suffix }}
+spring.thymeleaf.cache={{ auth_lib_thymeleaf_cache | lower }}
+spring.thymeleaf.check-template=true
+spring.thymeleaf.check-template-location=true
+
+
+# =========================================
+# LOGGING CONFIGURATION
+# =========================================
+# Log File Settings
+logging.file.path={{ auth_lib_log_dir }}
+logging.file.name={{ auth_lib_log_file }}
+
+# Log Levels Configuration
+logging.level.root={{ auth_lib_log_level_root }}
+logging.level.com.digi.auth={{ auth_lib_log_level_app }}
+logging.level.org.springframework.web={{ auth_lib_log_level_spring_web }}
+logging.level.org.springframework.security={{ auth_lib_log_level_spring_security }}
+logging.level.org.springframework.ldap={{ auth_lib_log_level_spring_ldap }}
+
+# Log Format Configuration
+logging.pattern.console=%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n
+logging.pattern.file=%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n
+
+# Rolling File Configuration
+logging.logback.rollingpolicy.file-name-pattern={{ auth_lib_log_dir }}/app-%d{yyyy-MM-dd}.%i.log
+logging.logback.rollingpolicy.max-file-size={{ auth_lib_log_max_file_size }}
+logging.logback.rollingpolicy.total-size-cap={{ auth_lib_log_total_size_cap }}
+logging.logback.rollingpolicy.max-history={{ auth_lib_log_max_history }}
+logging.logback.rollingpolicy.clean-history-on-start=false
+
+# Console Output Configuration
+spring.output.ansi.enabled={{ auth_lib_ansi_output }}
+

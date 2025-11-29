@@ -1,0 +1,147 @@
+---
+# =========================================
+# OpenLDAP Role - Main Tasks
+# =========================================
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  when: ansible_os_family == 'Debian'
+
+- name: Set slapd preseed values
+  ansible.builtin.debconf:
+    name: slapd
+    question: "{{ item.question }}"
+    value: "{{ item.value }}"
+    vtype: "{{ item.vtype }}"
+  loop:
+    - question: slapd/no_configuration
+      value: "false"
+      vtype: boolean
+    - question: slapd/domain
+      value: "{{ ldap_domain }}"
+      vtype: string
+    - question: shared/organization
+      value: "{{ ldap_organization }}"
+      vtype: string
+    - question: slapd/password1
+      value: "{{ ldap_admin_password }}"
+      vtype: password
+    - question: slapd/password2
+      value: "{{ ldap_admin_password }}"
+      vtype: password
+    - question: slapd/backend
+      value: "{{ ldap_backend | upper }}"
+      vtype: string
+    - question: slapd/purge_database
+      value: "false"
+      vtype: boolean
+    - question: slapd/move_old_database
+      value: "true"
+      vtype: boolean
+  no_log: true
+
+- name: Install OpenLDAP packages
+  ansible.builtin.apt:
+    name: "{{ ldap_packages }}"
+    state: present
+  when: ansible_os_family == 'Debian'
+
+- name: Reconfigure slapd with preseed values
+  ansible.builtin.command: dpkg-reconfigure -f noninteractive slapd
+  changed_when: true
+
+- name: Ensure slapd service is running and enabled
+  ansible.builtin.systemd:
+    name: "{{ ldap_service_name }}"
+    state: "{{ ldap_service_state }}"
+    enabled: "{{ ldap_service_enabled }}"
+
+- name: Wait for LDAP to be ready
+  ansible.builtin.wait_for:
+    port: "{{ ldap_port }}"
+    host: localhost
+    delay: 2
+    timeout: 30
+
+- name: Create users OU LDIF
+  ansible.builtin.template:
+    src: users-ou.ldif.j2
+    dest: /tmp/users-ou.ldif
+    mode: '0600'
+
+- name: Add users OU
+  ansible.builtin.command: >
+    ldapadd -x -D "{{ ldap_admin_dn }}" -w "{{ ldap_admin_password }}" -f /tmp/users-ou.ldif
+  register: ldap_add_ou
+  changed_when: ldap_add_ou.rc == 0
+  failed_when: ldap_add_ou.rc != 0 and 'Already exists' not in ldap_add_ou.stderr
+  no_log: true
+
+- name: Create groups OU LDIF (if groups are defined)
+  ansible.builtin.template:
+    src: groups-ou.ldif.j2
+    dest: /tmp/groups-ou.ldif
+    mode: '0600'
+  when: ldap_groups | length > 0
+
+- name: Add groups OU
+  ansible.builtin.command: >
+    ldapadd -x -D "{{ ldap_admin_dn }}" -w "{{ ldap_admin_password }}" -f /tmp/groups-ou.ldif
+  register: ldap_add_groups_ou
+  changed_when: ldap_add_groups_ou.rc == 0
+  failed_when: ldap_add_groups_ou.rc != 0 and 'Already exists' not in ldap_add_groups_ou.stderr
+  when: ldap_groups | length > 0
+  no_log: true
+
+- name: Create users LDIF file
+  ansible.builtin.template:
+    src: users.ldif.j2
+    dest: /tmp/ldap-users.ldif
+    mode: '0600'
+  when: ldap_users | length > 0
+
+- name: Add LDAP users
+  ansible.builtin.command: >
+    ldapadd -x -c -D "{{ ldap_admin_dn }}" -w "{{ ldap_admin_password }}" -f /tmp/ldap-users.ldif
+  register: ldap_add_users
+  changed_when: ldap_add_users.rc == 0
+  failed_when: ldap_add_users.rc != 0 and 'Already exists' not in ldap_add_users.stderr
+  when: ldap_users | length > 0
+  no_log: true
+
+- name: Create groups LDIF file
+  ansible.builtin.template:
+    src: groups.ldif.j2
+    dest: /tmp/ldap-groups.ldif
+    mode: '0600'
+  when: ldap_groups | length > 0
+
+- name: Add LDAP groups
+  ansible.builtin.command: >
+    ldapadd -x -c -D "{{ ldap_admin_dn }}" -w "{{ ldap_admin_password }}" -f /tmp/ldap-groups.ldif
+  register: ldap_add_groups
+  changed_when: ldap_add_groups.rc == 0
+  failed_when: ldap_add_groups.rc != 0 and 'Already exists' not in ldap_add_groups.stderr
+  when: ldap_groups | length > 0
+  no_log: true
+
+- name: Clean up temporary LDIF files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /tmp/users-ou.ldif
+    - /tmp/groups-ou.ldif
+    - /tmp/ldap-users.ldif
+    - /tmp/ldap-groups.ldif
+
+- name: Verify LDAP is accepting connections
+  ansible.builtin.command: >
+    ldapsearch -x -H {{ ldap_server_uri }} -b "{{ ldap_base_dn }}" -D "{{ ldap_admin_dn }}" -w "{{ ldap_admin_password }}" "(objectClass=*)" dn
+  register: ldap_check
+  changed_when: false
+  failed_when: ldap_check.rc != 0
+  no_log: true
+

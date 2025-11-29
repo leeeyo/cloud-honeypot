@@ -1,8 +1,130 @@
 ---
+# =========================================
+# GLOBAL ANSIBLE VARIABLES
+# All hosts inherit these variables
+# =========================================
+
+
+# =========================================
+# MYSQL CONFIGURATION
+# =========================================
+mysql_database: mydb
+mysql_username: root
+mysql_password: root
+mysql_root_password: root
+mysql_port: 3306
+mysql_bind_address: "127.0.0.1"
+mysql_character_set: utf8mb4
+mysql_collation: utf8mb4_unicode_ci
+
+# Performance Tuning
+mysql_max_connections: 151
+mysql_innodb_buffer_pool_size: 128M
+mysql_innodb_log_file_size: 48M
+
+# Service
+mysql_service_enabled: true
+mysql_service_state: started
+
+# Additional Users (optional)
+mysql_additional_users: []
+mysql_additional_databases: []
+
+
+# =========================================
+# OPENLDAP CONFIGURATION
+# =========================================
+ldap_domain: maxcrc.com
+ldap_organization: maxcrc
+ldap_base_dn: "dc=maxcrc,dc=com"
+ldap_admin_dn: "cn=admin,{{ ldap_base_dn }}"
+ldap_admin_password: secret
+ldap_server_uri: "ldap://localhost:389"
+ldap_port: 389
+ldap_users_ou: users
+ldap_groups_ou: groups
+
+# Default LDAP Users
+ldap_users:
+  - uid: aziz
+    cn: aziz
+    sn: aziz
+    mail: aziz@example.com
+    userPassword: "{SSHA}123"
+    title: ADMIN
+    description: online
+  - uid: aziz1
+    cn: aziz1
+    sn: aziz1
+    mail: aziz1@example.com
+    userPassword: "{SSHA}123"
+    title: USER
+    description: offline
+  - uid: aziz2
+    cn: aziz2
+    sn: aziz2
+    mail: aziz2@example.com
+    userPassword: "{SSHA}123"
+    title: GUEST
+    description: online
+
+# LDAP Groups (optional)
+ldap_groups: []
+
+# Service
+ldap_service_enabled: true
+ldap_service_state: started
+
+
+# =========================================
+# AUTH-LIB APPLICATION CONFIGURATION
+# =========================================
+auth_lib_user: aziz
+auth_lib_group: aziz
+auth_lib_app_dir: /opt/auth-lib
+auth_lib_port: 9090
+auth_lib_authentication_type: ldap  # Options: ldap, db
+
+# JVM Options
+auth_lib_heap_min: 256m
+auth_lib_heap_max: 512m
+auth_lib_metaspace_size: 128m
+auth_lib_jvm_opts: ""
+
+# MySQL Connection (uses global MySQL vars by default)
+auth_lib_mysql_host: localhost
+auth_lib_mysql_port: "{{ mysql_port }}"
+auth_lib_mysql_database: "{{ mysql_database }}"
+auth_lib_mysql_username: "{{ mysql_username }}"
+auth_lib_mysql_password: "{{ mysql_password }}"
+
+# LDAP Connection (uses global LDAP vars by default)
+auth_lib_ldap_url: "ldap://localhost:{{ ldap_port }}/{{ ldap_base_dn }}"
+auth_lib_ldap_base: "{{ ldap_base_dn }}"
+auth_lib_ldap_username: "{{ ldap_admin_dn }}"
+auth_lib_ldap_password: "{{ ldap_admin_password }}"
+auth_lib_ldap_users_ou: "{{ ldap_users_ou }}"
+
+# Logging
+auth_lib_log_level_root: INFO
+auth_lib_log_level_app: INFO
+
+# Service
+auth_lib_service_enabled: true
+auth_lib_service_state: started
+
+# Health Check
+auth_lib_health_check_enabled: true
+auth_lib_health_check_timeout: 60
+
+
+# =========================================
+# FALCO CONFIGURATION
+# =========================================
 falco_deploy_target: "auto"  # auto|k8s|vm
 
 # For k8s installs via Helm
-falco_chart_version: "3.8.3"  # adjust as needed
+falco_chart_version: "3.8.3"
 falco_namespace: "falco"
 falco_helm_values: {}
 
@@ -14,7 +136,8 @@ falco_vm_enable_kernel_headers: true
 falco_enable_falcosidekick: true
 falco_falcosidekick_version: "2.29.0"
 falco_falcosidekick_namespace: "falco"
-# Example Azure Log Analytics (configure if used)
+
+# Azure Log Analytics (configure if used)
 falco_azure_log_analytics:
   enabled: false
   customer_id: ""
@@ -22,3 +145,14 @@ falco_azure_log_analytics:
 
 # Custom rules override content
 falco_rules_local: ""
+
+
+# =========================================
+# COMMON SETTINGS
+# =========================================
+# Timezone
+common_timezone: UTC
+
+# Package management
+common_update_cache: true
+common_cache_valid_time: 3600

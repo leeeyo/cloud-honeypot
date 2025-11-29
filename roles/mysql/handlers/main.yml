@@ -1,0 +1,15 @@
+---
+# =========================================
+# MySQL Role - Handlers
+# =========================================
+
+- name: restart mysql
+  ansible.builtin.systemd:
+    name: "{{ mysql_service_name }}"
+    state: restarted
+
+- name: reload mysql
+  ansible.builtin.systemd:
+    name: "{{ mysql_service_name }}"
+    state: reloaded
+

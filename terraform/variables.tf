@@ -41,3 +41,9 @@ variable "ssh_public_key_path" {
   default     = "~/.ssh/id_rsa.pub"
 }
 
+variable "auth_lib_port" {
+  description = "Port for auth-lib application"
+  type        = string
+  default     = "9090"
+}
+

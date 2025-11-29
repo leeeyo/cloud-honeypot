@@ -1,0 +1,92 @@
+---
+# =========================================
+# Auth-Lib Role - Default Variables
+# =========================================
+
+# Application User and Directories
+auth_lib_user: aziz
+auth_lib_group: aziz
+auth_lib_app_dir: /opt/auth-lib
+auth_lib_log_dir: "{{ auth_lib_app_dir }}/logs"
+auth_lib_config_dir: "{{ auth_lib_app_dir }}/config"
+
+# JAR File Configuration
+auth_lib_jar_name: auth-lib.jar
+auth_lib_jar_path: ""  # Set in playbook or group_vars
+
+# Application Settings
+auth_lib_app_name: auth
+auth_lib_port: 9090
+auth_lib_authentication_type: ldap  # Options: ldap, db
+
+# JVM Options
+auth_lib_jvm_opts: ""
+auth_lib_heap_min: 256m
+auth_lib_heap_max: 512m
+auth_lib_metaspace_size: 128m
+auth_lib_gc_options: "-XX:+UseG1GC"
+
+# MySQL Connection
+auth_lib_mysql_host: localhost
+auth_lib_mysql_port: 3306
+auth_lib_mysql_database: mydb
+auth_lib_mysql_username: root
+auth_lib_mysql_password: root
+auth_lib_mysql_driver: com.mysql.cj.jdbc.Driver
+auth_lib_mysql_dialect: org.hibernate.dialect.MySQLDialect
+
+# JPA/Hibernate Settings
+auth_lib_jpa_ddl_auto: update
+auth_lib_jpa_show_sql: true
+auth_lib_jpa_open_in_view: false
+
+# LDAP Connection
+auth_lib_ldap_url: "ldap://localhost:389/dc=maxcrc,dc=com"
+auth_lib_ldap_base: "dc=maxcrc,dc=com"
+auth_lib_ldap_username: "cn=admin,dc=maxcrc,dc=com"
+auth_lib_ldap_password: secret
+auth_lib_ldap_users_ou: users
+auth_lib_ldap_user_search_filter: "(uid={0})"
+auth_lib_ldap_user_dn_pattern: "uid={username},ou=users,dc=maxcrc,dc=com"
+
+# Thymeleaf Settings
+auth_lib_thymeleaf_enabled: true
+auth_lib_thymeleaf_cache: false
+auth_lib_thymeleaf_prefix: "classpath:/templates/"
+auth_lib_thymeleaf_suffix: ".html"
+
+# Logging Configuration
+auth_lib_log_level_root: INFO
+auth_lib_log_level_app: INFO
+auth_lib_log_level_spring_web: INFO
+auth_lib_log_level_spring_security: INFO
+auth_lib_log_level_spring_ldap: INFO
+auth_lib_log_file: "{{ auth_lib_log_dir }}/app.log"
+auth_lib_log_max_file_size: 10MB
+auth_lib_log_max_history: 30
+auth_lib_log_total_size_cap: 100MB
+
+# Console Output
+auth_lib_ansi_output: DETECT
+
+# Spring Configuration
+auth_lib_allow_bean_override: true
+
+# Service Configuration
+auth_lib_service_name: auth-lib
+auth_lib_service_enabled: true
+auth_lib_service_state: started
+auth_lib_service_restart_sec: 10
+
+# Health Check
+auth_lib_health_check_enabled: true
+auth_lib_health_check_endpoint: "/actuator/health"
+auth_lib_health_check_timeout: 60
+
+# Java Installation
+auth_lib_java_package: openjdk-17-jdk
+auth_lib_java_home: /usr/lib/jvm/java-17-openjdk-amd64
+
+# Environment Variables (optional additional env vars)
+auth_lib_environment_vars: {}
+

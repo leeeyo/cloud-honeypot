@@ -1,0 +1,29 @@
+---
+# =========================================
+# DEVELOPMENT ENVIRONMENT OVERRIDES
+# =========================================
+
+# MySQL Development Settings
+mysql_root_password: root
+mysql_password: root
+mysql_max_connections: 50
+mysql_innodb_buffer_pool_size: 64M
+
+# LDAP Development Settings
+ldap_admin_password: secret
+
+# Auth-Lib Development Settings
+auth_lib_authentication_type: ldap
+auth_lib_heap_min: 128m
+auth_lib_heap_max: 256m
+auth_lib_log_level_root: DEBUG
+auth_lib_log_level_app: DEBUG
+auth_lib_jvm_opts: "-Dspring.profiles.active=dev"
+
+# Falco Development Settings
+falco_vm_enable_kernel_headers: true
+falco_azure_log_analytics:
+  enabled: false
+  customer_id: ""
+  shared_key: ""
+

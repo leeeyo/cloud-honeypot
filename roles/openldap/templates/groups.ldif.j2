@@ -1,0 +1,14 @@
+{% for group in ldap_groups %}
+dn: cn={{ group.cn }},ou={{ ldap_groups_ou }},{{ ldap_base_dn }}
+objectClass: groupOfNames
+objectClass: top
+cn: {{ group.cn }}
+{% for member in group.members %}
+member: {{ member }}
+{% endfor %}
+{% if group.description is defined %}
+description: {{ group.description }}
+{% endif %}
+
+{% endfor %}
+

@@ -32,12 +32,13 @@ resource "azurerm_subnet" "test" {
   address_prefixes     = ["10.0.1.0/24"]
 }
 
-# Network Security Group - Allow SSH
+# Network Security Group - Allow SSH and Application Ports
 resource "azurerm_network_security_group" "test" {
   name                = "${var.prefix}-nsg"
   location            = azurerm_resource_group.test.location
   resource_group_name = azurerm_resource_group.test.name
 
+  # SSH Access
   security_rule {
     name                       = "SSH"
     priority                   = 1001
@@ -46,6 +47,45 @@ resource "azurerm_network_security_group" "test" {
     protocol                   = "Tcp"
     source_port_range          = "*"
     destination_port_range     = "22"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
+  # Auth-Lib Application
+  security_rule {
+    name                       = "AuthLib"
+    priority                   = 1002
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = var.auth_lib_port
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
+  # HTTP
+  security_rule {
+    name                       = "HTTP"
+    priority                   = 1003
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "80"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
+  # HTTPS
+  security_rule {
+    name                       = "HTTPS"
+    priority                   = 1004
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "443"
     source_address_prefix      = "*"
     destination_address_prefix = "*"
   }
@@ -125,4 +165,3 @@ resource "azurerm_linux_virtual_machine" "test" {
 
   tags = azurerm_resource_group.test.tags
 }
-
