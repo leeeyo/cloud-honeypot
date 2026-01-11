@@ -1,0 +1,49 @@
+---
+# =========================================
+# MySQL Role - Default Variables
+# =========================================
+# Database Configuration
+mysql_database: mydb
+mysql_username: root
+mysql_password: root
+mysql_root_password: root
+# Server Configuration
+mysql_port: 3306
+mysql_bind_address: "127.0.0.1"
+mysql_socket: /var/run/mysqld/mysqld.sock
+# Character Set and Collation
+mysql_character_set: utf8mb4
+mysql_collation: utf8mb4_unicode_ci
+# Performance Tuning
+mysql_max_connections: 151
+mysql_innodb_buffer_pool_size: 128M
+mysql_innodb_log_file_size: 48M
+mysql_key_buffer_size: 16M
+mysql_max_allowed_packet: 16M
+mysql_thread_cache_size: 8
+mysql_query_cache_size: 0
+mysql_query_cache_type: 0
+# Logging Configuration
+mysql_log_error: /var/log/mysql/error.log
+mysql_slow_query_log: false
+mysql_slow_query_log_file: /var/log/mysql/slow.log
+mysql_long_query_time: 2
+# Service Configuration
+mysql_service_name: mysql
+mysql_service_enabled: true
+mysql_service_state: started
+# Installation Options
+mysql_packages:
+  - mysql-server
+  - mysql-client
+  - python3-pymysql
+# Additional Users (list of dicts)
+# Example:
+# mysql_additional_users:
+#   - name: app_user
+#     password: app_password
+#     priv: "mydb.*:ALL"
+#     host: localhost
+mysql_additional_users: []
+# Additional Databases (list of database names)
+mysql_additional_databases: []

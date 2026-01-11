@@ -1,0 +1,72 @@
+@startuml use-case-diagram
+!theme plain
+skinparam actorStyle awesome
+skinparam packageStyle rectangle
+skinparam backgroundColor #FEFEFE
+
+title Azure Cloud Honeypot - Use Case Diagram
+
+left to right direction
+
+' Actors
+actor "Attacker" as attacker #red
+actor "CI/CD Pipeline\n(GitHub Actions)" as cicd #blue
+actor "Security Analyst" as analyst #green
+
+' System boundary
+rectangle "Azure Honeypot Environment" {
+    
+    ' Honeypot Actions Package
+    package "Honeypot Actions" as honeypot_pkg {
+        usecase "Interact with\nAuth-Lib (HTTP:9090)" as UC1
+        usecase "Access MySQL\nDatabase (3306)" as UC2
+        usecase "Query LDAP\nDirectory (389)" as UC3
+        usecase "Monitor Activity\n(Falco)" as UC4
+        usecase "Detect Suspicious\nActivity" as UC5
+        usecase "Generate Alerts\n& Logs" as UC6
+        usecase "Forward Alerts\nto Logs" as UC7
+    }
+    
+    ' CI/CD Actions Package
+    package "CI/CD Actions" as cicd_pkg {
+        usecase "Provision Infrastructure\n(Terraform)" as UC8
+        usecase "Configure & Deploy\nServices (Ansible)" as UC9
+        usecase "Install Falco\nMonitoring" as UC10
+        usecase "Run Validation\nTests" as UC11
+    }
+    
+    ' Analyst Actions Package
+    package "Analyst Actions" as analyst_pkg {
+        usecase "Receive\nAlerts" as UC12
+        usecase "Investigate\nIncident" as UC13
+        usecase "Analyze Attack\nPatterns" as UC14
+    }
+}
+
+' Attacker connections
+attacker --> UC1
+attacker --> UC2
+attacker --> UC3
+
+' Include relationships for honeypot flow
+UC1 ..> UC4 : <<include>>
+UC2 ..> UC4 : <<include>>
+UC3 ..> UC4 : <<include>>
+UC4 ..> UC5 : <<include>>
+UC5 ..> UC6 : <<include>>
+UC6 ..> UC7 : <<include>>
+
+' CI/CD connections
+cicd --> UC8
+UC8 ..> UC9 : <<include>>
+UC9 ..> UC10 : <<include>>
+UC10 ..> UC11 : <<include>>
+
+' Analyst connections
+UC7 ..> UC12 : <<include>>
+analyst --> UC12
+analyst --> UC13
+UC13 ..> UC14 : <<include>>
+
+@enduml
+

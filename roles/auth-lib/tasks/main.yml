@@ -1,0 +1,150 @@
+---
+# =========================================
+# Auth-Lib Role - Main Tasks
+# =========================================
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  when: ansible_os_family == 'Debian'
+
+- name: Install Java 17
+  ansible.builtin.apt:
+    name: "{{ auth_lib_java_package }}"
+    state: present
+  when: ansible_os_family == 'Debian'
+
+- name: Set JAVA_HOME environment variable
+  ansible.builtin.lineinfile:
+    path: /etc/environment
+    regexp: '^JAVA_HOME='
+    line: 'JAVA_HOME={{ auth_lib_java_home }}'
+    state: present
+
+- name: Create application group
+  ansible.builtin.group:
+    name: "{{ auth_lib_group }}"
+    state: present
+  when: auth_lib_user != 'root'
+
+- name: Create application user
+  ansible.builtin.user:
+    name: "{{ auth_lib_user }}"
+    group: "{{ auth_lib_group }}"
+    system: false
+    create_home: true
+    shell: /bin/bash
+    state: present
+  when: auth_lib_user != 'root'
+
+- name: Create application directory
+  ansible.builtin.file:
+    path: "{{ auth_lib_app_dir }}"
+    state: directory
+    owner: "{{ auth_lib_user }}"
+    group: "{{ auth_lib_group }}"
+    mode: '0755'
+
+- name: Create logs directory
+  ansible.builtin.file:
+    path: "{{ auth_lib_log_dir }}"
+    state: directory
+    owner: "{{ auth_lib_user }}"
+    group: "{{ auth_lib_group }}"
+    mode: '0755'
+
+- name: Create config directory
+  ansible.builtin.file:
+    path: "{{ auth_lib_config_dir }}"
+    state: directory
+    owner: "{{ auth_lib_user }}"
+    group: "{{ auth_lib_group }}"
+    mode: '0755'
+
+- name: Check if JAR path is provided
+  ansible.builtin.fail:
+    msg: "auth_lib_jar_path must be set to the location of the JAR file"
+  when: auth_lib_jar_path == ""
+
+- name: Check if JAR file exists
+  ansible.builtin.stat:
+    path: "{{ auth_lib_jar_path }}"
+  register: jar_file
+  delegate_to: localhost
+  become: false
+
+- name: Fail if JAR file does not exist
+  ansible.builtin.fail:
+    msg: "JAR file not found at {{ auth_lib_jar_path }}. Please build the application first."
+  when: not jar_file.stat.exists
+
+- name: Copy application JAR
+  ansible.builtin.copy:
+    src: "{{ auth_lib_jar_path }}"
+    dest: "{{ auth_lib_app_dir }}/{{ auth_lib_jar_name }}"
+    owner: "{{ auth_lib_user }}"
+    group: "{{ auth_lib_group }}"
+    mode: '0644'
+  notify: restart auth-lib
+
+- name: Deploy application.properties
+  ansible.builtin.template:
+    src: application.properties.j2
+    dest: "{{ auth_lib_config_dir }}/application.properties"
+    owner: "{{ auth_lib_user }}"
+    group: "{{ auth_lib_group }}"
+    mode: '0640'
+  notify: restart auth-lib
+
+- name: Create symlink for application.properties in app directory
+  ansible.builtin.file:
+    src: "{{ auth_lib_config_dir }}/application.properties"
+    dest: "{{ auth_lib_app_dir }}/application.properties"
+    owner: "{{ auth_lib_user }}"
+    group: "{{ auth_lib_group }}"
+    state: link
+
+- name: Deploy systemd service file
+  ansible.builtin.template:
+    src: auth-lib.service.j2
+    dest: /etc/systemd/system/{{ auth_lib_service_name }}.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - reload systemd
+    - restart auth-lib
+
+- name: Enable and start auth-lib service
+  ansible.builtin.systemd:
+    name: "{{ auth_lib_service_name }}"
+    enabled: "{{ auth_lib_service_enabled }}"
+    state: "{{ auth_lib_service_state }}"
+    daemon_reload: true
+
+- name: Wait for application to start
+  ansible.builtin.wait_for:
+    port: "{{ auth_lib_port }}"
+    host: localhost
+    delay: 5
+    timeout: "{{ auth_lib_health_check_timeout }}"
+  when: auth_lib_health_check_enabled
+
+- name: Verify application is responding
+  ansible.builtin.uri:
+    url: "http://localhost:{{ auth_lib_port }}{{ auth_lib_health_check_endpoint }}"
+    method: GET
+    status_code: [200, 401, 403]
+    timeout: 10
+  register: health_check
+  retries: 5
+  delay: 5
+  until: health_check.status in [200, 401, 403]
+  when: auth_lib_health_check_enabled
+  ignore_errors: true
+
+- name: Display application status
+  ansible.builtin.debug:
+    msg: "Auth-lib is running on http://{{ ansible_host }}:{{ auth_lib_port }}"
+

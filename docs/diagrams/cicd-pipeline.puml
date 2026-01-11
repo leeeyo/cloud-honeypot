@@ -1,0 +1,61 @@
+@startuml cicd-pipeline
+!theme plain
+skinparam backgroundColor #FEFEFE
+
+title CI/CD Pipeline Flow (GitHub Actions)
+
+|Developer|
+start
+:Push code to\nGitHub repository;
+
+|GitHub Actions|
+fork
+    :Terraform Validate;
+    :Format check;
+    :Init & Validate;
+    :Security scan\n(Checkov);
+fork again
+    :Ansible Lint;
+    :YAML lint;
+    :Syntax check;
+fork again
+    :Build Application;
+    :Run unit tests;
+    :Generate coverage;
+    :Package JAR;
+end fork
+
+:Code Quality;
+fork
+    :SonarQube analysis;
+fork again
+    :OWASP Dependency\nCheck;
+end fork
+
+if (Main branch?) then (yes)
+    :Deploy to Azure;
+    :Download artifacts;
+    :Setup SSH keys;
+    :Run Ansible\nplaybook;
+    :Verify deployment;
+    :Health check;
+else (no)
+    :Skip deployment;
+endif
+
+|Azure VMs|
+:Services Running;
+fork
+    :MySQL\n(3306);
+fork again
+    :OpenLDAP\n(389);
+fork again
+    :Auth-Lib\n(9090);
+fork again
+    :Falco\n(monitoring);
+end fork
+
+stop
+
+@enduml
+

@@ -1,0 +1,65 @@
+@startuml sequence-diagram
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam sequenceMessageAlign center
+
+title Azure Cloud Honeypot - Attack Detection Flow
+
+actor "Attacker" as attacker #Red
+participant "Auth-Lib\n(Spring Boot)" as authlib #LightGreen
+participant "MySQL / LDAP\nBackends" as backends #LightYellow
+participant "Falco Agent" as falco #Orange
+database "Local Logs\n(falco.log)" as logs #LightGray
+actor "Security Analyst" as analyst #Green
+
+== Attack Phase ==
+
+attacker -> authlib: 1. HTTP Request\n(Login attempt)
+activate authlib
+
+authlib -> backends: 2. Query user credentials
+activate backends
+backends --> authlib: Return auth result
+deactivate backends
+
+authlib --> attacker: 3. Response\n(success/failure)
+deactivate authlib
+
+== Detection Phase ==
+
+authlib -> falco: 4. Runtime events\n(syscalls, process activity)
+activate falco
+
+falco -> falco: 5. Evaluate events\nagainst rules
+
+alt Suspicious Activity Detected
+    falco -> logs: 6. Write alert event\n(rule, time, process, user, command)
+    activate logs
+    
+    analyst -> logs: 7. Review alerts\n(grep/journalctl/tail)
+    logs --> analyst: Alert details
+    deactivate logs
+    
+    analyst -> authlib: 8. Investigate further\n(SSH into VM, check processes)
+    activate authlib
+    authlib --> analyst: Investigation data
+    deactivate authlib
+    
+else No Suspicious Activity
+    falco -> logs: 9. Log normal events\n(optional debug logging)
+end
+
+deactivate falco
+
+== Investigation Phase ==
+
+analyst -> analyst: 10. Analyze attack patterns
+note right of analyst
+    - Review login attempts
+    - Check source IPs
+    - Identify attack vectors
+    - Document findings
+end note
+
+@enduml
+

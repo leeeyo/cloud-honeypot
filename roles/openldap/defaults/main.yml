@@ -1,0 +1,72 @@
+---
+# =========================================
+# OpenLDAP Role - Default Variables
+# =========================================
+# LDAP Server Configuration
+ldap_domain: maxcrc.com
+ldap_organization: maxcrc
+ldap_base_dn: "dc=maxcrc,dc=com"
+ldap_admin_dn: "cn=admin,{{ ldap_base_dn }}"
+ldap_admin_password: secret
+# Server Settings
+ldap_server_uri: "ldap://localhost:389"
+ldap_port: 389
+ldap_ssl_port: 636
+ldap_enable_ssl: false
+# Organizational Units
+ldap_users_ou: users
+ldap_groups_ou: groups
+# Service Configuration
+ldap_service_name: slapd
+ldap_service_enabled: true
+ldap_service_state: started
+# Installation Options
+ldap_packages:
+  - slapd
+  - ldap-utils
+  - python3-ldap
+# User Attributes Defaults
+ldap_default_user_object_classes:
+  - inetOrgPerson
+  - organizationalPerson
+  - person
+  - top
+# Default LDAP Users
+# Each user should have: uid, cn, sn, mail, userPassword, title (role), description (status)
+ldap_users:
+  - uid: aziz
+    cn: aziz
+    sn: aziz
+    mail: aziz@example.com
+    userPassword: "{SSHA}123"
+    title: ADMIN
+    description: online
+  - uid: aziz1
+    cn: aziz1
+    sn: aziz1
+    mail: aziz1@example.com
+    userPassword: "{SSHA}123"
+    title: USER
+    description: offline
+  - uid: aziz2
+    cn: aziz2
+    sn: aziz2
+    mail: aziz2@example.com
+    userPassword: "{SSHA}123"
+    title: GUEST
+    description: online
+# LDAP Groups (optional)
+# ldap_groups:
+#   - cn: admins
+#     members:
+#       - uid=aziz,ou=users,dc=maxcrc,dc=com
+ldap_groups: []
+# LDAP Search Configuration
+ldap_search_base: "ou={{ ldap_users_ou }},{{ ldap_base_dn }}"
+ldap_user_search_filter: "(uid={0})"
+ldap_user_dn_pattern: "uid={username},ou={{ ldap_users_ou }},{{ ldap_base_dn }}"
+# Logging
+ldap_log_level: stats
+# Database Backend
+ldap_backend: mdb
+ldap_db_directory: /var/lib/ldap

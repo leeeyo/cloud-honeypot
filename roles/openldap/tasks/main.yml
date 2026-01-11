@@ -1,0 +1,111 @@
+---
+# =========================================
+# OpenLDAP Role - Main Tasks (Simplified)
+# =========================================
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  when: ansible_os_family == 'Debian'
+
+- name: Install OpenLDAP packages
+  ansible.builtin.apt:
+    name: "{{ ldap_packages }}"
+    state: present
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+  when: ansible_os_family == 'Debian'
+
+- name: Ensure slapd service is running and enabled
+  ansible.builtin.systemd:
+    name: "{{ ldap_service_name }}"
+    state: "{{ ldap_service_state }}"
+    enabled: "{{ ldap_service_enabled }}"
+
+- name: Wait for LDAP to be ready
+  ansible.builtin.wait_for:
+    port: "{{ ldap_port }}"
+    host: localhost
+    delay: 2
+    timeout: 30
+
+- name: Reconfigure slapd with domain
+  ansible.builtin.shell: |
+    echo "slapd slapd/no_configuration boolean false" | debconf-set-selections
+    echo "slapd slapd/domain string {{ ldap_domain }}" | debconf-set-selections
+    echo "slapd shared/organization string {{ ldap_organization }}" | debconf-set-selections
+    echo "slapd slapd/password1 password {{ ldap_admin_password }}" | debconf-set-selections
+    echo "slapd slapd/password2 password {{ ldap_admin_password }}" | debconf-set-selections
+    echo "slapd slapd/backend string MDB" | debconf-set-selections
+    echo "slapd slapd/purge_database boolean false" | debconf-set-selections
+    echo "slapd slapd/move_old_database boolean true" | debconf-set-selections
+    dpkg-reconfigure -f noninteractive slapd
+  changed_when: true
+
+- name: Wait for LDAP after reconfigure
+  ansible.builtin.wait_for:
+    port: "{{ ldap_port }}"
+    host: localhost
+    delay: 3
+    timeout: 30
+
+- name: Create users OU LDIF
+  ansible.builtin.copy:
+    content: |
+      dn: ou={{ ldap_users_ou }},{{ ldap_base_dn }}
+      objectClass: organizationalUnit
+      objectClass: top
+      ou: {{ ldap_users_ou }}
+    dest: /tmp/users-ou.ldif
+    mode: '0600'
+
+- name: Add users OU
+  ansible.builtin.shell: |
+    ldapadd -x -D "{{ ldap_admin_dn }}" -w "{{ ldap_admin_password }}" -f /tmp/users-ou.ldif 2>&1 || true
+  register: ldap_add_ou
+  changed_when: "'adding new entry' in ldap_add_ou.stdout"
+
+- name: Create users LDIF file
+  ansible.builtin.copy:
+    content: |
+      {% for user in ldap_users %}
+      dn: uid={{ user.uid }},ou={{ ldap_users_ou }},{{ ldap_base_dn }}
+      objectClass: inetOrgPerson
+      objectClass: organizationalPerson
+      objectClass: person
+      objectClass: top
+      cn: {{ user.cn }}
+      sn: {{ user.sn }}
+      uid: {{ user.uid }}
+      mail: {{ user.mail }}
+      title: {{ user.title }}
+      description: {{ user.description }}
+      userPassword: {{ user.userPassword }}
+      
+      {% endfor %}
+    dest: /tmp/ldap-users.ldif
+    mode: '0600'
+  when: ldap_users | length > 0
+
+- name: Add LDAP users
+  ansible.builtin.shell: |
+    ldapadd -x -c -D "{{ ldap_admin_dn }}" -w "{{ ldap_admin_password }}" -f /tmp/ldap-users.ldif 2>&1 || true
+  register: ldap_add_users
+  changed_when: "'adding new entry' in ldap_add_users.stdout"
+  when: ldap_users | length > 0
+
+- name: Clean up temporary LDIF files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /tmp/users-ou.ldif
+    - /tmp/ldap-users.ldif
+
+- name: Verify LDAP is working
+  ansible.builtin.shell: |
+    ldapsearch -x -H {{ ldap_server_uri }} -b "{{ ldap_base_dn }}" -D "{{ ldap_admin_dn }}" -w "{{ ldap_admin_password }}" "(objectClass=*)" dn | head -20
+  register: ldap_check
+  changed_when: false
+  failed_when: false

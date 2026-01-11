@@ -1,0 +1,15 @@
+---
+# =========================================
+# OpenLDAP Role - Handlers
+# =========================================
+
+- name: restart slapd
+  ansible.builtin.systemd:
+    name: "{{ ldap_service_name }}"
+    state: restarted
+
+- name: reload slapd
+  ansible.builtin.systemd:
+    name: "{{ ldap_service_name }}"
+    state: reloaded
+

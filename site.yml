@@ -1,17 +1,174 @@
 ---
+# =========================================
+# MAIN SITE PLAYBOOK
+# Orchestrates complete infrastructure and application deployment
+# =========================================
+#
+# Usage:
+#   Full deployment:
+#     ansible-playbook site.yml
+#
+#   Infrastructure only:
+#     ansible-playbook site.yml --tags infrastructure
+#
+#   Application only (requires infrastructure):
+#     ansible-playbook site.yml --tags application
+#
+#   Security monitoring only:
+#     ansible-playbook site.yml --tags security
+#
+#   Skip specific components:
+#     ansible-playbook site.yml --skip-tags falco
+#
+# =========================================
+
+# =========================================
+# PHASE 1: INFRASTRUCTURE SETUP
+# =========================================
+- name: Setup MySQL Database
+  hosts: linux
+  become: true
+  gather_facts: true
+  tags:
+    - infrastructure
+    - mysql
+    - database
+  roles:
+    - role: mysql
+
+- name: Setup OpenLDAP Directory Service
+  hosts: linux
+  become: true
+  gather_facts: true
+  tags:
+    - infrastructure
+    - openldap
+    - ldap
+  roles:
+    - role: openldap
+
+
+# =========================================
+# PHASE 2: APPLICATION DEPLOYMENT
+# =========================================
+- name: Deploy Auth-Lib Application
+  hosts: linux
+  become: true
+  gather_facts: true
+  tags:
+    - application
+    - auth-lib
+    - deploy
+  vars:
+    auth_lib_jar_path: "{{ playbook_dir }}/auth-lib/build/libs/Project1-1.0.0.jar"
+  pre_tasks:
+    - name: Verify infrastructure is ready
+      ansible.builtin.wait_for:
+        port: "{{ item.port }}"
+        host: localhost
+        timeout: 30
+      loop:
+        - { port: "{{ mysql_port | default(3306) }}", name: "MySQL" }
+        - { port: "{{ ldap_port | default(389) }}", name: "OpenLDAP" }
+      loop_control:
+        label: "{{ item.name }}"
+  roles:
+    - role: auth-lib
+
+
+# =========================================
+# PHASE 3: SECURITY MONITORING
+# =========================================
 - name: Install Falco on AKS nodes via Helm
   hosts: aks
   gather_facts: false
+  tags:
+    - security
+    - falco
+    - k8s
   vars:
     falco_deploy_target: "k8s"
   roles:
-    - falco
+    - role: falco
 
 - name: Install Falco on Linux VMs
   hosts: linux
   become: true
   gather_facts: true
+  tags:
+    - security
+    - falco
+    - vm
   vars:
     falco_deploy_target: "vm"
   roles:
-    - falco
+    - role: falco
+
+
+# =========================================
+# PHASE 4: VERIFICATION
+# =========================================
+- name: Verify Complete Deployment
+  hosts: linux
+  become: true
+  gather_facts: true
+  tags:
+    - verify
+    - always
+  tasks:
+    - name: Check MySQL service status
+      ansible.builtin.systemd:
+        name: mysql
+      register: mysql_status
+      failed_when: false
+      tags:
+        - mysql
+
+    - name: Check OpenLDAP service status
+      ansible.builtin.systemd:
+        name: slapd
+      register: ldap_status
+      failed_when: false
+      tags:
+        - openldap
+
+    - name: Check auth-lib service status
+      ansible.builtin.systemd:
+        name: auth-lib
+      register: authlib_status
+      failed_when: false
+      tags:
+        - auth-lib
+
+    - name: Check Falco service status
+      ansible.builtin.systemd:
+        name: falco
+      register: falco_status
+      failed_when: false
+      tags:
+        - falco
+
+    - name: Display deployment summary
+      ansible.builtin.debug:
+        msg: |
+          ============================================
+          DEPLOYMENT SUMMARY - {{ inventory_hostname }}
+          ============================================
+          Services Status:
+            - MySQL:    {{ mysql_status.status.ActiveState | default('not installed') }}
+            - OpenLDAP: {{ ldap_status.status.ActiveState | default('not installed') }}
+            - Auth-Lib: {{ authlib_status.status.ActiveState | default('not installed') }}
+            - Falco:    {{ falco_status.status.ActiveState | default('not installed') }}
+
+          Application URLs:
+            - Auth-Lib: http://{{ ansible_host | default(inventory_hostname) }}:{{ auth_lib_port | default(9090) }}
+            - Login:    http://{{ ansible_host | default(inventory_hostname) }}:{{ auth_lib_port | default(9090) }}/login
+
+          Useful Commands:
+            - Check auth-lib logs: journalctl -u auth-lib -f
+            - Check Falco alerts:  journalctl -u falco -f
+            - MySQL client:        mysql -u root -p
+            - LDAP search:         ldapsearch -x -H ldap://localhost -b "{{ ldap_base_dn | default('dc=maxcrc,dc=com') }}"
+          ============================================
+      tags:
+        - always

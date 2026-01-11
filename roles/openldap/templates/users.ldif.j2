@@ -1,0 +1,25 @@
+{% for user in ldap_users %}
+dn: uid={{ user.uid }},ou={{ ldap_users_ou }},{{ ldap_base_dn }}
+{% for oc in ldap_default_user_object_classes %}
+objectClass: {{ oc }}
+{% endfor %}
+cn: {{ user.cn }}
+sn: {{ user.sn }}
+uid: {{ user.uid }}
+mail: {{ user.mail }}
+userPassword: {{ user.userPassword }}
+{% if user.title is defined %}
+title: {{ user.title }}
+{% endif %}
+{% if user.description is defined %}
+description: {{ user.description }}
+{% endif %}
+{% if user.givenName is defined %}
+givenName: {{ user.givenName }}
+{% endif %}
+{% if user.telephoneNumber is defined %}
+telephoneNumber: {{ user.telephoneNumber }}
+{% endif %}
+
+{% endfor %}
+

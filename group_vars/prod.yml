@@ -1,0 +1,41 @@
+---
+# =========================================
+# PRODUCTION ENVIRONMENT OVERRIDES
+# =========================================
+# WARNING: Use Ansible Vault for sensitive values in production!
+
+# MySQL Production Settings
+# mysql_root_password: "{{ vault_mysql_root_password }}"
+# mysql_password: "{{ vault_mysql_password }}"
+mysql_max_connections: 300
+mysql_innodb_buffer_pool_size: 512M
+mysql_innodb_log_file_size: 128M
+mysql_slow_query_log: true
+mysql_long_query_time: 2
+
+# LDAP Production Settings
+# ldap_admin_password: "{{ vault_ldap_admin_password }}"
+
+# Auth-Lib Production Settings
+auth_lib_authentication_type: ldap
+auth_lib_heap_min: 512m
+auth_lib_heap_max: 1024m
+auth_lib_metaspace_size: 256m
+auth_lib_log_level_root: WARN
+auth_lib_log_level_app: INFO
+auth_lib_jvm_opts: "-Dspring.profiles.active=prod -XX:+HeapDumpOnOutOfMemoryError"
+
+# mysql and ldap passwords should be vaulted
+# auth_lib_mysql_password: "{{ vault_mysql_password }}"
+# auth_lib_ldap_password: "{{ vault_ldap_admin_password }}"
+
+# Falco Production Settings
+falco_vm_enable_kernel_headers: true
+falco_enable_falcosidekick: true
+
+# Enable Azure Log Analytics in production
+# falco_azure_log_analytics:
+#   enabled: true
+#   customer_id: "{{ vault_azure_log_analytics_customer_id }}"
+#   shared_key: "{{ vault_azure_log_analytics_shared_key }}"
+

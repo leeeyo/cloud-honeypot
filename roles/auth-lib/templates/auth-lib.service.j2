@@ -1,0 +1,46 @@
+[Unit]
+Description=Auth-Lib Spring Boot Application
+Documentation=https://github.com/your-org/auth-lib
+After=network.target mysql.service slapd.service
+Wants=mysql.service slapd.service
+
+[Service]
+Type=simple
+User={{ auth_lib_user }}
+Group={{ auth_lib_group }}
+WorkingDirectory={{ auth_lib_app_dir }}
+
+# Java Configuration
+Environment="JAVA_HOME={{ auth_lib_java_home }}"
+Environment="JAVA_OPTS=-Xms{{ auth_lib_heap_min }} -Xmx{{ auth_lib_heap_max }} -XX:MetaspaceSize={{ auth_lib_metaspace_size }} {{ auth_lib_gc_options }} {{ auth_lib_jvm_opts }}"
+
+{% if auth_lib_environment_vars | length > 0 %}
+# Additional Environment Variables
+{% for key, value in auth_lib_environment_vars.items() %}
+Environment="{{ key }}={{ value }}"
+{% endfor %}
+{% endif %}
+
+# Application Execution
+ExecStart={{ auth_lib_java_home }}/bin/java \
+    $JAVA_OPTS \
+    -Dspring.config.location={{ auth_lib_config_dir }}/application.properties \
+    -jar {{ auth_lib_app_dir }}/{{ auth_lib_jar_name }}
+
+# Restart Configuration
+Restart=always
+RestartSec={{ auth_lib_service_restart_sec }}
+SuccessExitStatus=143
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier={{ auth_lib_service_name }}
+
+# Security Settings
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+

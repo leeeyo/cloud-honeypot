@@ -1,0 +1,84 @@
+@startuml deployment-diagram
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam componentStyle rectangle
+
+title Azure Cloud Honeypot - Deployment Architecture
+
+' External actors
+cloud "Git Repository\n(GitHub)" as git #LightBlue
+rectangle "CI/CD Pipeline\n(GitHub Actions)" as cicd #LightBlue
+actor "Attacker" as attacker #Red
+actor "Security Analyst" as analyst #Green
+
+' Tools
+rectangle "Terraform" as tf #Purple
+rectangle "Ansible" as ansible #Orange
+
+' Azure Cloud
+rectangle "Azure Subscription" as azure #Azure {
+    
+    rectangle "Resource Group: cloud-honeypot-rg" as rg {
+        
+        rectangle "Virtual Network (honeypot-vnet)\n10.0.0.0/16" as vnet {
+            
+            rectangle "Subnet (honeypot-subnet)\n10.0.1.0/24" as subnet {
+                
+                rectangle "Network Security Group" as nsg #LightGray {
+                    note right of nsg
+                        Allowed Ports:
+                        - SSH (22)
+                        - HTTP (80/443)
+                        - Auth-Lib (9090)
+                        - MySQL (3306)
+                        - LDAP (389)
+                    end note
+                }
+                
+                ' VM 1
+                node "honeypot-vm-1\n(Ubuntu 22.04)" as vm1 {
+                    component "Auth-Lib\n(Spring Boot)" as authlib1 #LightGreen
+                    database "MySQL\n(3306)" as mysql1 #LightYellow
+                    database "OpenLDAP\n(389)" as ldap1 #LightYellow
+                    component "Falco Agent" as falco1 #Orange
+                    
+                    authlib1 --> mysql1
+                    authlib1 --> ldap1
+                }
+                
+                ' VM 2
+                node "honeypot-vm-2\n(Ubuntu 22.04)" as vm2 {
+                    component "Auth-Lib\n(Spring Boot)" as authlib2 #LightGreen
+                    database "MySQL\n(3306)" as mysql2 #LightYellow
+                    database "OpenLDAP\n(389)" as ldap2 #LightYellow
+                    component "Falco Agent" as falco2 #Orange
+                    
+                    authlib2 --> mysql2
+                    authlib2 --> ldap2
+                }
+            }
+        }
+    }
+}
+
+' Local Logs
+database "Local Logs\n(/var/log/falco)" as logs #LightGray
+
+' Connections
+git --> cicd
+cicd --> tf
+cicd --> ansible
+tf --> azure : "Provision\nInfrastructure"
+ansible --> vm1 : "Configure\n& Deploy"
+ansible --> vm2 : "Configure\n& Deploy"
+
+attacker --> authlib1 : "HTTP/Login\nAttempts"
+attacker --> authlib2 : "HTTP/Login\nAttempts"
+
+falco1 --> logs : "syscalls\n& events"
+falco2 --> logs : "syscalls\n& events"
+
+logs --> analyst : "Review\nAlerts"
+
+@enduml
+
