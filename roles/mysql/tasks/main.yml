@@ -2,19 +2,16 @@
 # =========================================
 # MySQL Role - Main Tasks
 # =========================================
-
 - name: Update apt cache
   ansible.builtin.apt:
     update_cache: true
     cache_valid_time: 3600
   when: ansible_os_family == 'Debian'
-
 - name: Install MySQL packages
   ansible.builtin.apt:
     name: "{{ mysql_packages }}"
     state: present
   when: ansible_os_family == 'Debian'
-
 - name: Install Python MySQL library
   ansible.builtin.apt:
     name:
@@ -22,27 +19,24 @@
       - python3-mysqldb
     state: present
   when: ansible_os_family == 'Debian'
-
 - name: Ensure MySQL service is running and enabled
   ansible.builtin.systemd:
     name: "{{ mysql_service_name }}"
     state: "{{ mysql_service_state }}"
     enabled: "{{ mysql_service_enabled }}"
-
 - name: Wait for MySQL to be ready
   ansible.builtin.wait_for:
     port: "{{ mysql_port }}"
     host: "{{ mysql_bind_address }}"
     delay: 5
     timeout: 60
-
 - name: Set MySQL root password authentication method
   ansible.builtin.shell: |
-    mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '{{ mysql_root_password }}';"
+    mysql -u root -e "ALTER USER 'root'@'localhost' \
+      IDENTIFIED WITH mysql_native_password BY '{{ mysql_root_password }}';"
   changed_when: false
   failed_when: false
   no_log: true
-
 - name: Create main application database
   community.mysql.mysql_db:
     name: "{{ mysql_database }}"
@@ -52,7 +46,6 @@
     login_user: root
     login_password: "{{ mysql_root_password }}"
     login_unix_socket: "{{ mysql_socket }}"
-
 - name: Create additional databases
   community.mysql.mysql_db:
     name: "{{ item }}"
@@ -64,7 +57,6 @@
     login_unix_socket: "{{ mysql_socket }}"
   loop: "{{ mysql_additional_databases }}"
   when: mysql_additional_databases | length > 0
-
 - name: Create main application user
   community.mysql.mysql_user:
     name: "{{ mysql_username }}"
@@ -76,15 +68,15 @@
     login_password: "{{ mysql_root_password }}"
     login_unix_socket: "{{ mysql_socket }}"
   ignore_errors: true
-
 - name: Grant privileges via shell (fallback)
   ansible.builtin.shell: |
-    mysql -u root -p{{ mysql_root_password }} -e "CREATE USER IF NOT EXISTS '{{ mysql_username }}'@'%' IDENTIFIED BY '{{ mysql_password }}';"
-    mysql -u root -p{{ mysql_root_password }} -e "GRANT ALL PRIVILEGES ON {{ mysql_database }}.* TO '{{ mysql_username }}'@'%';"
+    mysql -u root -p{{ mysql_root_password }} -e \
+      "CREATE USER IF NOT EXISTS '{{ mysql_username }}'@'%' IDENTIFIED BY '{{ mysql_password }}';"
+    mysql -u root -p{{ mysql_root_password }} -e \
+      "GRANT ALL PRIVILEGES ON {{ mysql_database }}.* TO '{{ mysql_username }}'@'%';"
     mysql -u root -p{{ mysql_root_password }} -e "FLUSH PRIVILEGES;"
   changed_when: true
   failed_when: false
-
 - name: Create additional MySQL users
   community.mysql.mysql_user:
     name: "{{ item.name }}"
@@ -98,7 +90,6 @@
   loop: "{{ mysql_additional_users }}"
   when: mysql_additional_users | length > 0
   no_log: true
-
 - name: Deploy MySQL configuration file
   ansible.builtin.template:
     src: my.cnf.j2
@@ -108,7 +99,6 @@
     mode: '0644'
   notify: restart mysql
   when: mysql_deploy_custom_config | default(false)
-
 - name: Verify MySQL is accepting connections
   ansible.builtin.command: >
     mysql -u {{ mysql_username }} -p{{ mysql_password }} -e "SELECT 1;"
@@ -116,4 +106,3 @@
   changed_when: false
   failed_when: mysql_check.rc != 0
   no_log: true
-

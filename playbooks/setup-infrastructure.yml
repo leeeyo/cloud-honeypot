@@ -7,31 +7,26 @@
   hosts: linux
   become: true
   gather_facts: true
-
   pre_tasks:
     - name: Display infrastructure setup start
       ansible.builtin.debug:
         msg: "Starting infrastructure setup on {{ inventory_hostname }}"
-
     - name: Update apt cache
       ansible.builtin.apt:
         update_cache: true
         cache_valid_time: 3600
       when: ansible_os_family == 'Debian'
-
   roles:
     - role: mysql
       tags:
         - mysql
         - database
         - infrastructure
-
     - role: openldap
       tags:
         - openldap
         - ldap
         - infrastructure
-
   post_tasks:
     - name: Verify MySQL is running
       ansible.builtin.systemd:
@@ -41,7 +36,6 @@
       tags:
         - verify
         - mysql
-
     - name: Verify OpenLDAP is running
       ansible.builtin.systemd:
         name: slapd
@@ -50,7 +44,6 @@
       tags:
         - verify
         - openldap
-
     - name: Display infrastructure setup complete
       ansible.builtin.debug:
         msg: |
@@ -59,4 +52,3 @@
           - OpenLDAP: {{ 'Running' if ldap_service.status.ActiveState == 'active' else 'Not Running' }}
       tags:
         - verify
-

@@ -7,25 +7,21 @@
   hosts: linux
   become: true
   gather_facts: true
-
   vars:
     # Override this variable or set in inventory/group_vars
     auth_lib_jar_path: "{{ playbook_dir }}/../auth-lib/build/libs/Project1-1.0.0.jar"
-
   pre_tasks:
     - name: Display deployment start
       ansible.builtin.debug:
         msg: "Starting auth-lib deployment on {{ inventory_hostname }}"
       tags:
         - always
-
     - name: Check if JAR file path is defined
       ansible.builtin.fail:
         msg: "auth_lib_jar_path must be defined. Current value: {{ auth_lib_jar_path }}"
       when: auth_lib_jar_path == "" or auth_lib_jar_path is not defined
       tags:
         - always
-
     - name: Check if JAR file exists locally
       ansible.builtin.stat:
         path: "{{ auth_lib_jar_path }}"
@@ -34,7 +30,6 @@
       become: false
       tags:
         - always
-
     - name: Fail if JAR file does not exist
       ansible.builtin.fail:
         msg: |
@@ -44,14 +39,12 @@
       when: not jar_file.stat.exists
       tags:
         - always
-
     - name: Display JAR file info
       ansible.builtin.debug:
         msg: "Deploying JAR: {{ auth_lib_jar_path }} ({{ jar_file.stat.size | human_readable }})"
       when: jar_file.stat.exists
       tags:
         - always
-
     - name: Verify MySQL is available
       ansible.builtin.wait_for:
         port: "{{ auth_lib_mysql_port | default(mysql_port) | default(3306) }}"
@@ -60,7 +53,6 @@
       tags:
         - verify
         - mysql
-
     - name: Verify LDAP is available (if using LDAP auth)
       ansible.builtin.wait_for:
         port: "{{ ldap_port | default(389) }}"
@@ -70,14 +62,12 @@
       tags:
         - verify
         - ldap
-
   roles:
     - role: auth-lib
       tags:
         - auth-lib
         - application
         - deploy
-
   post_tasks:
     - name: Wait for application to be ready
       ansible.builtin.wait_for:
@@ -87,7 +77,6 @@
         timeout: 120
       tags:
         - verify
-
     - name: Check application health
       ansible.builtin.uri:
         url: "http://localhost:{{ auth_lib_port | default(9090) }}/login"
@@ -102,16 +91,14 @@
       tags:
         - verify
         - health
-
     - name: Display deployment result
       ansible.builtin.debug:
         msg: |
           Auth-lib deployment complete!
-          - Application URL: http://{{ ansible_host | default(inventory_hostname) }}:{{ auth_lib_port | default(9090) }}
-          - Login page: http://{{ ansible_host | default(inventory_hostname) }}:{{ auth_lib_port | default(9090) }}/login
-          - Health check: {{ 'Passed' if health_check.status in [200, 302] else 'Failed - check logs' }}
+          - Application URL: http://{{ ansible_host }}:{{ auth_lib_port | default(9090) }}
+          - Login page: http://{{ ansible_host }}:{{ auth_lib_port | default(9090) }}/login
+          - Health check: {{ 'Passed' if health_check.status in [200, 302] else 'Failed' }}
           - Service status: systemctl status auth-lib
           - Logs: journalctl -u auth-lib -f
       tags:
         - always
-
