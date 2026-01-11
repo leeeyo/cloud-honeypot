@@ -22,6 +22,12 @@
     line: 'JAVA_HOME={{ auth_lib_java_home }}'
     state: present
 
+- name: Create application group
+  ansible.builtin.group:
+    name: "{{ auth_lib_group }}"
+    state: present
+  when: auth_lib_user != 'root'
+
 - name: Create application user
   ansible.builtin.user:
     name: "{{ auth_lib_user }}"
